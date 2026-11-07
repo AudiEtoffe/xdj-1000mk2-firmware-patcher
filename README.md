@@ -4,6 +4,7 @@
 
 A browser-based patcher that turns Pioneer's original **XDJ-1000MK2 1.45** update file into **firmware 2.0**. Everything runs
 on your own computer: nothing is uploaded, and no Pioneer firmware is stored in this repository.
+100% Free, but consider following my music pages @ linktr.ee/etoffe
 
 **Use it online:** https://audietoffe.github.io/xdj-1000mk2-firmware-patcher/ &nbsp;(or download `index.html` and open it in a
 browser: it also works offline).
