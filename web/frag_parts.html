@@ -1,0 +1,101 @@
+<style>
+  /* ===== THEME: edit these colours to match your site ===== */
+  #xdjp {
+    color-scheme: light;
+    --bg: transparent;      /* page background (transparent = shows your site behind it) */
+    --card: #ffffff;        /* card background */
+    --fg: #1c1220;          /* main text */
+    --muted: #675b6e;       /* secondary text */
+    --line: #e3d8e6;       /* borders */
+    --accent: #a51d9d;      /* buttons, links, progress bar */
+    --accent-fg: #ffffff;   /* text on buttons */
+    --warn: #7a5200; --warnbg: #fff4d6;
+    --err: #a11;     --errbg: #fde8e8;
+    --ok: #0a6b4d;   --okbg: #e3f6ee;
+    --radius: 12px;
+    --font: system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;   /* or "inherit" to use your site's font */
+  }
+  /* ===== end of theme ===== */
+
+  #xdjp { background:var(--bg); color:var(--fg); font:16px/1.5 var(--font); max-width:760px; margin:0 auto; padding:24px 16px 48px; text-align:left; }
+  #xdjp, #xdjp * { box-sizing:border-box; }
+  #xdjp h1 { font-size:1.6rem; line-height:1.25; margin:0 0 4px; padding:0; color:inherit; font-family:inherit; font-weight:700; text-align:left; text-transform:none; letter-spacing:normal; }
+  #xdjp h2 { font-size:1.1rem; line-height:1.3; margin:0 0 10px; padding:0; color:inherit; font-family:inherit; font-weight:700; text-align:left; text-transform:none; letter-spacing:normal; }
+  #xdjp p { margin:0 0 10px; padding:0; font-size:1rem; line-height:1.5; color:inherit; text-align:left; font-family:inherit; }
+  #xdjp .by { color:var(--muted); margin:0 0 20px; }
+  #xdjp a { color:var(--accent); }
+  #xdjp .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin:0 0 16px; }
+  #xdjp .status { line-height:1.5; font-size:.9rem; color:var(--warn); background:var(--warnbg); border-radius:10px; padding:8px 12px; margin:0 0 14px; } #xdjp .status.bad { color:var(--err); background:var(--errbg); }
+  #xdjp ul { margin:6px 0 0; padding-left:20px; list-style:disc; } #xdjp li { margin:3px 0; padding:0; font-size:1rem; color:inherit; }
+  #xdjp .drop { font-size:1rem; line-height:1.5; display:block; position:relative; border:2px dashed var(--line); border-radius:var(--radius); padding:26px 14px; text-align:center; cursor:pointer; color:var(--muted); }
+  #xdjp .drop.over, #xdjp .drop:focus-within { border-color:var(--accent); color:var(--fg); }
+  #xdjp .drop input { position:absolute; opacity:0; width:1px; height:1px; }
+  #xdjp .file { margin-top:10px; font-size:.95rem; word-break:break-all; }
+  #xdjp .opt { font-size:1rem; line-height:1.5; color:inherit; display:flex; gap:10px; align-items:flex-start; margin:10px 0; cursor:pointer; }
+  #xdjp .opt input { margin:5px 0 0; width:18px; height:18px; flex:none; }
+  #xdjp .opt small { display:block; color:var(--muted); }
+  #xdjp button, #xdjp .btn { appearance:none; -webkit-appearance:none; border:0; border-radius:10px; padding:12px 22px; font:inherit; font-weight:600; background:var(--accent); color:var(--accent-fg); cursor:pointer; text-decoration:none; display:inline-block; box-shadow:none; text-transform:none; letter-spacing:normal; }
+  #xdjp button:disabled { opacity:.45; cursor:not-allowed; }
+  #xdjp .bar { height:12px; background:var(--line); border-radius:8px; overflow:hidden; margin:14px 0 6px; } #xdjp .bar > div { height:100%; width:0; background:var(--accent); transition:width .25s; }
+  #xdjp .note { border-radius:10px; padding:10px 12px; margin:12px 0 0; font-size:.95rem; }
+  #xdjp .warn { background:var(--warnbg); color:var(--warn); } #xdjp .err { background:var(--errbg); color:var(--err); } #xdjp .ok { background:var(--okbg); color:var(--ok); }
+  #xdjp .muted { color:var(--muted); font-size:.9rem; } #xdjp .mono { font-family:ui-monospace,Consolas,monospace; font-size:.82rem; word-break:break-all; }
+  #xdjp b, #xdjp strong { color:inherit; font-weight:700; background:none; }
+  #xdjp ol { padding-left:20px; margin:6px 0 0; list-style:decimal; } #xdjp [hidden] { display:none !important; }
+</style>
+<div id="xdjp">
+  <h1>XDJ-1000MK2 &middot; Firmware 2.0 Patcher</h1>
+  <p class="by">By: Audi &Eacute;toffe &middot; <a href="https://soundcloud.com/audietoffe" target="_blank" rel="noopener">SoundCloud</a> &middot; <a href="https://linktr.ee/etoffe" target="_blank" rel="noopener">linktr.ee/etoffe</a></p>
+
+  <p class="status" id="xdjp-status">Starting&hellip; If this message never goes away, your site is blocking this page&rsquo;s scripts and the patcher cannot run there.</p>
+  <noscript><p class="status bad">JavaScript is turned off in your browser, so the patcher cannot run.</p></noscript>
+  <section class="card">
+    <h2>What this does</h2>
+    Turns Pioneer&rsquo;s original XDJ-1000MK2 <b>1.45</b> update file into <b>firmware 2.0</b>, right here in your browser:
+    <ul>
+      <li><b>exFAT USB drives</b> &mdash; the player reads exFAT sticks and drives (including 64&nbsp;GB and larger) as well as FAT32. Read-only.</li>
+      <li><b>Extra features</b> (optional) &mdash; 3-band waveform colours, 32-beat loops, gated hot cues, extended beat jump.</li>
+      <li><b>88.2 / 96&nbsp;kHz FLAC and WAV HAS NOT BEEN TESTED</b> (optional, <i>experimental</i>) &mdash; as on the CDJ-2000NXS2.</li>
+    </ul>
+    <p class="muted" style="margin:10px 0 0">Your file never leaves your computer: nothing is uploaded, and nothing of Pioneer&rsquo;s is stored on this site.</p>
+  </section>
+
+  <section class="card">
+    <h2>1 &middot; Choose the original update file</h2>
+    <p style="margin-top:0">Download the XDJ-1000MK2 <b>1.45</b> firmware from Pioneer DJ&rsquo;s support site, unzip it, and pick the file <span class="mono">XDJ1KMK2.UPD</span>.</p>
+    <label class="drop" id="xdjp-drop"><input type="file" id="xdjp-file" accept=".upd,.UPD"><span id="xdjp-dropText">Click to choose the file, or drop it here</span></label>
+    <div class="file" id="xdjp-fileInfo" hidden></div>
+    <div id="xdjp-fileNote"></div>
+  </section>
+
+  <section class="card">
+    <h2>2 &middot; Options</h2>
+    <label class="opt"><input type="checkbox" id="xdjp-optDjp" checked><span><b>Include extra features</b><small>3-band waveforms, 32-beat loops, gated hot cues, extended beat jump. Turn off for exFAT support only.</small></span></label>
+    <label class="opt"><input type="checkbox" id="xdjp-optHires"><span><b>88.2 / 96&nbsp;kHz FLAC and WAV HAS NOT BEEN TESTED</b> <small>Experimental: the files are accepted by the player, but it has not been confirmed that every file plays cleanly. Leave off unless you want to test it.</small></span></label>
+  </section>
+
+  <section class="card">
+    <h2>3 &middot; Patch</h2>
+    <button id="xdjp-go" disabled>Patch the firmware</button>
+    <div id="xdjp-progress" hidden><div class="bar"><div id="xdjp-barFill"></div></div><div class="muted" id="xdjp-progressText"></div></div>
+    <div id="xdjp-msg"></div>
+    <div id="xdjp-result" hidden>
+      <p style="margin:14px 0 8px"><a class="btn" id="xdjp-dl" download="XDJ1KMK2.UPD">Download XDJ1KMK2.UPD</a></p>
+      <div class="muted" id="xdjp-resultInfo"></div>
+      <h2 style="margin-top:18px">Install it</h2>
+      <ol>
+        <li>Copy the downloaded <span class="mono">XDJ1KMK2.UPD</span> to the top level of a <b>FAT32</b> USB stick (the file must keep exactly that name).</li>
+        <li>Switch the player off, insert the stick, then switch it on while holding <b>LOOP IN</b> and <b>RELOOP/EXIT</b>.</li>
+        <li><b>Do not turn the player off or unplug anything during the update.</b></li>
+        <li>When it restarts, the version screen shows <b>2.00</b>.</li>
+      </ol>
+      <p class="muted">To go back, run the same steps with Pioneer&rsquo;s original 1.45 file. Keep that file safe.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Please read</h2>
+    <p style="margin-top:0">This is an unofficial modification and is not made, approved or supported by Pioneer DJ or AlphaTheta. Flashing firmware always carries some risk; use it at your own risk, with the player on mains power, and keep Pioneer&rsquo;s original update file. No firmware is distributed here &mdash; you supply your own copy and the patch is applied on your device.</p>
+    <p class="muted" style="margin-bottom:0">exFAT support and this page by Audi &Eacute;toffe. Works best in a current desktop browser; it needs a few hundred MB of free memory while patching. Free and open source (GNU GPL v2): <a href="https://github.com/AudiEtoffe/xdj-1000mk2-firmware-patcher" target="_blank" rel="noopener">source code on GitHub</a>.</p>
+  </section>
+</div>

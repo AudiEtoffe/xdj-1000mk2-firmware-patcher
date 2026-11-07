@@ -1,0 +1,22 @@
+Third-party material and what the licence covers
+================================================
+
+This project is licensed under the GNU General Public License, version 2 only (see LICENSE). That licence covers the code
+written for this project: the exFAT layer (src/), the page and patching library (web/), the tools, tests and harnesses.
+It does not automatically cover the following.
+
+1. "Extra features" patch data
+   data/patchspec.json, group "djpatcher": the byte changes that add 3-band waveform colours, 32-beat loops, gated hot cues
+   and extended beat jump. These are the changes made by djpatcher / LNNRT Mods (https://lennartpas.nl/mods/) and are used
+   with the original author's permission. They remain subject to the original author's terms; the GPL on this repository does
+   not relicense them. If you are the author and want this credited differently or removed, please open an issue.
+
+2. Pioneer DJ / AlphaTheta
+   "Pioneer DJ", "AlphaTheta", "XDJ" and "CDJ" are trademarks of their respective owners. This project is not made, approved
+   or supported by them. No Pioneer firmware is included in this repository or served by the page: you supply your own copy,
+   and the patch is applied in your browser. The patch data contains only the replacement bytes (and a few bytes used to
+   check that the right place is being patched).
+
+3. Reference reading
+   The optional 88.2/96 kHz audio change was written after reading how Pioneer's own CDJ-2000NXS2 firmware validates sample
+   rates; no NXS2 code is included.
