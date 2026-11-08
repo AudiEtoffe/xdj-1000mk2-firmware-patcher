@@ -72,10 +72,14 @@ typedef struct {
     uint8_t sbuf[512];
     uint8_t fbuf[512];
     x2f_t *x;
+    uint32_t on;               /* RAM overlay: sectors the player wrote that are NOT file data (FAT, directories, ...) */
+    uint32_t *okey;            /* ... their virtual LBAs */
+    uint8_t *odata;            /* ... and contents (OVL_CAP sectors, allocated on first use) */
 } dstate;
+#define OVL_CAP 40u
 
 /* static state: no heap allocation is needed to start looking at a stick (initialised to zero in the image) */
-static dstate g_dstate[NDISK];
+static dstate *g_ds[NDISK];    /* per-drive state: allocated from the player's heap the first time a drive attaches (keeps the firmware's free space for code) */
 static unsigned g_reads;       /* diagnostic: read commands seen since the last attach (saturates at 15) */
 static unsigned g_served;      /* diagnostic: reads served from the virtual volume since the attach (saturates at 15) */
 static unsigned g_last_err;    /* diagnostic: error code of the last failed read */
@@ -86,13 +90,26 @@ static unsigned g_ready;       /* == READY_MAGIC once g_dstate has been cleared 
 /* The state lives in the 0xFF padding of the firmware image, so its initial contents are NOT zero.
  * Clear it at run time, once, before anything looks at it. */
 static void init_state_once(void) {
-    unsigned char *p = (unsigned char *)g_dstate;
-    unsigned long n = sizeof g_dstate;
+    unsigned i;
     if (g_ready == READY_MAGIC) return;
-    while (n--) *p++ = 0;
+    for (i = 0; i < NDISK; i++) g_ds[i] = 0;
     g_reads = 0;
     g_served = 0;
     g_ready = READY_MAGIC;
+}
+static dstate *get_state(int idx) {
+    dstate *st;
+    init_state_once();
+    if (idx < 0 || idx >= NDISK) return 0;
+    st = g_ds[idx];
+    if (!st) {
+        unsigned char *q; unsigned long n = sizeof(dstate);
+        st = (dstate *)fw_alloc((unsigned)n);
+        if (!st) return 0;
+        for (q = (unsigned char *)st; n--; ) *q++ = 0;
+        g_ds[idx] = st;
+    }
+    return st;
 }
 
 #ifndef XDJ_TEST
@@ -110,10 +127,62 @@ void *memset(void *d, int c, __SIZE_TYPE__ n) {
 #endif
 
 /* answer a read from the virtual volume and update the diagnostic status */
+/* ---- writes (stage B: save in place) ----------------------------------------------------------------------------
+ * The player believes it is writing to a FAT32 drive. A write is applied to the real stick ONLY if it lands inside the data of
+ * an existing file (x2f_data_map): then the same bytes of the real exFAT file are overwritten, and no exFAT structure changes.
+ * Every other write (boot/FSInfo sectors, the FAT, directories, free space) is kept in a small RAM overlay so the player sees
+ * a consistent drive for this session; it is never written to the stick and is dropped at the next attach. */
+static uint32_t disk44(void *disk);
+static unsigned g_wr_data, g_wr_ovl;   /* diagnostic: write operations that went to the stick / to the RAM overlay (saturate at 9) */
+static int vol_write(dstate *st, uint32_t real, uint32_t n, const void *buf) {
+    return fw_orig_io(st->disk, 2, real + st->start - disk44(st->disk), (void *)buf, n) == 0 ? 0 : -1;
+}
+static int ovl_put(dstate *st, uint32_t lba, const uint8_t *src) {
+    uint32_t i, k;
+    if (!st->okey) {
+        st->okey = (uint32_t *)fw_alloc(OVL_CAP * 4);
+        st->odata = (uint8_t *)fw_alloc(OVL_CAP * 512);
+        if (!st->okey || !st->odata) {
+            if (st->okey) fw_free(st->okey);
+            if (st->odata) fw_free(st->odata);
+            st->okey = 0; st->odata = 0; return -1;
+        }
+    }
+    for (i = 0; i < st->on; i++) if (st->okey[i] == lba) break;
+    if (i == st->on) { if (st->on >= OVL_CAP) return -1; st->okey[st->on++] = lba; }
+    for (k = 0; k < 512; k++) st->odata[i * 512 + k] = src[k];
+    return 0;
+}
+static void ovl_apply(const dstate *st, uint32_t lba, uint32_t count, uint8_t *buf) {
+    uint32_t i, k;
+    for (i = 0; i < st->on; i++)
+        if (st->okey[i] >= lba && st->okey[i] - lba < count)
+            for (k = 0; k < 512; k++) buf[(st->okey[i] - lba) * 512 + k] = st->odata[i * 512 + k];
+}
+static int do_write(dstate *st, uint32_t lba, uint32_t count, const uint8_t *buf) {
+    uint32_t done = 0;
+    if ((uint64_t)lba + count > x2f_total(st->x)) return -1;
+    while (done < count) {
+        uint32_t real = 0, run = x2f_data_map(st->x, lba + done, count - done, &real);
+        if (run) {
+            if (vol_write(st, real, run, buf + done * 512)) return -1;
+            if (g_wr_data < 9) g_wr_data++;
+            done += run;
+        } else {
+            if (ovl_put(st, lba + done, buf + done * 512)) return -1;
+            if (g_wr_ovl < 9) g_wr_ovl++;
+            done++;
+        }
+    }
+    VER_PTR[2] = (char)('0' + g_wr_data); VER_PTR[3] = (char)('0' + g_wr_ovl);
+    return 0;
+}
+
 static int serve(dstate *st, unsigned lba, unsigned count, void *buf) {
     unsigned dirs, data, fat;
     int r = x2f_read(st->x, lba, count, buf);
     if (r != X2F_OK) { g_last_err = (unsigned)-r; diag_raise('E', (unsigned)-r); return -1; }
+    if (st->on) ovl_apply(st, lba, count, (uint8_t *)buf);
     if (g_served < 15) g_served++;
     x2f_stats(st->x, &dirs, &data, &fat);
     if (data) diag_raise('D', dirs);
@@ -149,6 +218,9 @@ static int disk_index_of(void *disk);
 
 static void reset_state(dstate *st) {
     if (st->x) x2f_close(st->x);
+    if (st->okey) m_free_ctx(0, st->okey);
+    if (st->odata) m_free_ctx(0, st->odata);
+    st->okey = 0; st->odata = 0; st->on = 0;
     st->x = 0; st->mode = MODE_UNKNOWN; st->tries = 0;
 }
 
@@ -305,13 +377,14 @@ static int xdj_io_inner(void *disk, int cmd, unsigned lba, void *buf, unsigned c
     int idx = disk_index_of(disk);
     dstate *st;
     if (idx < 0) return fw_orig_io(disk, cmd, lba, buf, count);
-    init_state_once();
-    st = &g_dstate[idx];
+    st = get_state(idx);
+    if (!st) return fw_orig_io(disk, cmd, lba, buf, count);     /* no memory for our state: behave as the stock firmware */
 
     if (cmd == 5) {                              /* new attach: forget everything about this disk */
         reset_state(st);
         g_reads = 0;
         g_served = 0;
+        g_wr_data = 0; g_wr_ovl = 0;
         diag_force('I', 0);
         return fw_orig_io(disk, cmd, lba, buf, count);
     }
@@ -323,7 +396,10 @@ static int xdj_io_inner(void *disk, int cmd, unsigned lba, void *buf, unsigned c
         if (st->mode == MODE_EXFAT) return serve(st, lba, count, buf);
         return fw_orig_io(disk, cmd, lba, buf, count);
     }
-    if (cmd == 2 && st->mode == MODE_EXFAT) return -1;     /* read-only */
+    if (cmd == 2) {
+        if (st->mode == MODE_UNKNOWN) probe(st, disk);
+        if (st->mode == MODE_EXFAT) return do_write(st, lba, count & 0xFFFF, (const uint8_t *)buf);
+    }
     return fw_orig_io(disk, cmd, lba, buf, count);
 }
 
@@ -335,7 +411,7 @@ int xdj_io(void *disk, int cmd, unsigned lba, void *buf, unsigned count) {
 
 #ifdef XDJ_TEST
 int xdj_test_prefetch(int idx) {
-    return (idx >= 0 && idx < NDISK && g_dstate[idx].x) ? x2f_prefetch_all(g_dstate[idx].x) : -1;
+    return (idx >= 0 && idx < NDISK && g_ds[idx] && g_ds[idx]->x) ? x2f_prefetch_all(g_ds[idx]->x) : -1;
 }
 #endif
 
@@ -358,11 +434,10 @@ extern int xdj_test_parse(void *disk, void *buf);
 static void ident_sub(void *disk, void *buf, unsigned rel) {
     int idx = disk_index_of(disk);
     if (idx >= 0) {
-        dstate *st;
-        init_state_once();
-        st = &g_dstate[idx];
+        dstate *st = get_state(idx);
+        if (!st) return;
         if (st->mode == MODE_UNKNOWN) probe(st, disk);
-        if (st->mode == MODE_EXFAT) x2f_read(st->x, rel, 1, buf);
+        if (st->mode == MODE_EXFAT && x2f_read(st->x, rel, 1, buf) == X2F_OK && st->on) ovl_apply(st, rel, 1, (uint8_t *)buf);
     }
 }
 int xdj_ident(void *disk, void *buf)  { ident_sub(disk, buf, 0); return ORIG_PARSE1(disk, buf); }

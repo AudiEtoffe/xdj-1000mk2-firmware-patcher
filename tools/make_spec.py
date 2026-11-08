@@ -45,7 +45,7 @@ hires = [w(off, new, old) for name, off, old, new in px.HIRES]
 spec = {
     "v": 1, "unpackedSize": px.EXPECT_SIZE, "streamOff": px.STREAM_OFF,
     "stockSha256": hashlib.sha256(open('stock145.UPD', 'rb').read()).hexdigest(),
-    "verFrom": "1.45", "verTo": "2.00", "verOff": 0x740,
+    "verFrom": "1.45", "verTo": "2.01", "verOff": 0x740,
     "groups": {"djpatcher": djp_ops, "layer_stock": layer('rel_stock/manifest.json'), "layer_djp": layer('rel_djp/manifest.json'), "hires": hires},
 }
 json.dump(spec, open('patchspec.json', 'w'), separators=(',', ':'))

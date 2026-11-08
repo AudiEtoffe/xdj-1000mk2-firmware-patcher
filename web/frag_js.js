@@ -45,6 +45,7 @@
   }
 
   $('file').addEventListener('change', function (e) { onFile(e.target.files[0]); });
+  if ($('ver')) $('ver').textContent = spec.verTo;
   statusEl.hidden = true;                           // everything loaded: hide the starting message
   var drop = $('drop');
   ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });

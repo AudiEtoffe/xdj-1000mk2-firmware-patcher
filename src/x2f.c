@@ -466,6 +466,39 @@ void x2f_close(x2f_t *x) {
 
 uint32_t x2f_total_sectors(const x2f_t *x) { return x->total; }
 
+/* Writes: say whether virtual sector `lba` is the data of an existing file, and where the same bytes live on the real volume.
+ * Returns the number of consecutive virtual sectors (1..n) that map to consecutive real sectors starting at *real_out
+ * (volume-relative, like x2f_read uses), or 0 if the sector is NOT file data (reserved sectors, the FAT, directories,
+ * free space, or the unused tail of a virtual cluster past the file's real allocation). Nothing is allocated or changed. */
+uint32_t x2f_total(const x2f_t *x) { return x->total; }
+
+uint32_t x2f_data_map(x2f_t *x, uint32_t lba, uint32_t n, uint32_t *real_out) {
+    uint32_t rel, vc, off, fsec, ralloc, left, run;
+    x2f_ext *e;
+    if (!n || lba < x->Sd || (uint64_t)lba + n > x->total) return 0;
+    rel = lba - x->Sd; vc = (rel >> x->spc_shift) + 2; off = rel & (x->spc - 1);
+    if (vc < x->fstart) return 0;
+    e = ext_find(x, vc);
+    if (!e) return 0;
+    fsec = ((vc - e->vstart) << x->spc_shift) + off;
+    ralloc = e->nreal << x->rshift;
+    left = ((e->vstart + e->ncl - vc) << x->spc_shift) - off;
+    if (fsec >= ralloc) return 0;
+    if (left > ralloc - fsec) left = ralloc - fsec;
+    run = n < left ? n : left;
+    if (e->nofat) {
+        *real_out = x->v->heap_lba + ((e->rfirst - 2) << x->rshift) + fsec;
+    } else {
+        uint32_t rc, insec = fsec & (((uint32_t)1 << x->rshift) - 1);
+        if (ext_chain(x, e)) return 0;
+        rc = e->chain[fsec >> x->rshift];
+        if (rc < 2) return 0;
+        if (run > ((uint32_t)1 << x->rshift) - insec) run = ((uint32_t)1 << x->rshift) - insec;
+        *real_out = x->v->heap_lba + ((rc - 2) << x->rshift) + insec;
+    }
+    return run;
+}
+
 int x2f_read(x2f_t *x, uint32_t lba, uint32_t n, void *vbuf) {
     uint8_t *buf = (uint8_t *)vbuf;
     if ((uint64_t)lba + n > x->total) return X2F_ERR_RANGE;

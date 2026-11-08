@@ -125,10 +125,11 @@ for lba in (0, 1, 2, 32, 1000, 5000):
     r, d = cmd(1, 1, lba, 1)
     same &= (r == 0 and d == raw[lba * 512:(lba + 1) * 512])
 print("  FAT32 volume passes through unchanged:", same, "| status text", repr(ver())); ok &= same and ver()[2] == "P"
-# 3. write is refused on exFAT, other commands/unknown disks are forwarded
+# 3. writes to exFAT never reach the device unless they land in file data (stage B; see test_write.py), other commands/unknown disks are forwarded
 assert lib.xdj_test_open(b"t4k.img", 0) == 0
 cmd(2, 5, 0, 0); cmd(2, 1, 0, 1)
-r, _ = cmd(2, 2, 100, 1); print("  write to exFAT volume refused:", r == -1); ok &= (r == -1)
+w0 = lib.xdj_test_orig_calls(2)
+r, _ = cmd(2, 2, 100, 1); print("  metadata write to exFAT accepted, kept off the device:", r == 0 and lib.xdj_test_orig_calls(2) == w0); ok &= (r == 0 and lib.xdj_test_orig_calls(2) == w0)
 r, _ = cmd(2, 7, 0, 0); print("  other commands forwarded:", r == 0); ok &= (r == 0)
 r, _ = cmd(9, 1, 0, 1); print("  unknown disk pointer forwarded:", r == 0); ok &= (r == 0)
 print("ALL OK" if ok else "FAILED"); sys.exit(0 if ok else 1)

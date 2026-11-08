@@ -16,6 +16,7 @@ void xdj_test_set_ver(const char *s) { int i; for (i = 0; i < 5 && s[i]; i++) g_
 static unsigned char disks[4][0x1E8];
 static int g_fd = -1;
 static unsigned g_part;
+static int g_rw;
 static unsigned long g_calls[16];
 
 void *fw_alloc(unsigned n) { return malloc(n); }
@@ -36,7 +37,12 @@ int fw_orig_io(void *disk, int cmd, unsigned lba, void *buf, unsigned count) {
         size_t want = (size_t)count * 512;
         return pread(g_fd, buf, want, (off_t)(unsigned)(d44_of(disk) + lba) * 512) == (ssize_t)want ? 0 : -1;
     }
-    case 2: case 5: case 7: case 8: case 10: return 0;
+    case 2: {
+        size_t want = (size_t)count * 512;
+        if (!g_rw) return 0;
+        return pwrite(g_fd, buf, want, (off_t)(unsigned)(d44_of(disk) + lba) * 512) == (ssize_t)want ? 0 : -1;
+    }
+    case 5: case 7: case 8: case 10: return 0;
     default: return -16;
     }
 }
@@ -48,6 +54,11 @@ int xdj_test_open(const char *path, unsigned part_start) {
     g_part = part_start;
     xdj_test_set_d44(part_start);
     xdj_test_disk_base = (unsigned long)disks;
+    return g_fd < 0 ? -1 : 0;
+}
+int xdj_test_open_rw(const char *path, unsigned part_start) {   /* scratch copies only: lets cmd 2 really write */
+    xdj_test_disk_base = 0; g_fd = open(path, O_RDWR); g_rw = 1; g_part = part_start;
+    xdj_test_set_d44(part_start); xdj_test_disk_base = (unsigned long)disks;
     return g_fd < 0 ? -1 : 0;
 }
 int xdj_test_cmd(int idx, int cmd, unsigned lba, void *buf, unsigned count) {

@@ -50,6 +50,8 @@ void x2f_close(x2f_t *x);
 
 /* partition-relative sector read of the virtual FAT32 volume (same shape as the I/O callback) */
 int  x2f_read(x2f_t *x, uint32_t lba, uint32_t nsect, void *buf);
+uint32_t x2f_total(const x2f_t *x);                                                    /* size of the virtual volume in sectors */
+uint32_t x2f_data_map(x2f_t *x, uint32_t lba, uint32_t n, uint32_t *real_out);   /* writes: where does this file-data sector really live (0 = not file data) */
 uint32_t x2f_total_sectors(const x2f_t *x);
 
 /* diagnostics: directories generated, file-data reads, FAT sectors served so far */
